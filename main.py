@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformer
 
 PDF_PATH = "story.pdf"
 
+# Word counts. Overlap keeps context that would otherwise sit on a chunk boundary.
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
@@ -18,6 +19,7 @@ def extract_pages(pdf_path):
         for page_number, page in enumerate(pdf, start=1):
             text = page.get_text("text").strip()
 
+            # Skip blank pages so they never become empty chunks.
             if text:
                 pages.append({
                     "page": page_number,
@@ -29,6 +31,7 @@ def extract_pages(pdf_path):
 
 def create_chunks(pages):
     chunks = []
+    # Slide forward by less than a full chunk so neighbors share words.
     step = CHUNK_SIZE - CHUNK_OVERLAP
 
     if step <= 0:
@@ -54,8 +57,9 @@ def create_embeddings(chunks, model):
     texts = [chunk["text"] for chunk in chunks]
 
     if not texts:
-        return np.empty((0, 384))
+        return np.empty((0, 384))  # MiniLM-L6-v2 vector size
 
+    # Normalized vectors so dot product equals cosine similarity.
     return model.encode(
         texts,
         normalize_embeddings=True,
